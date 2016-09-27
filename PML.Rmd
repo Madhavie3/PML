@@ -1,0 +1,95 @@
+#Practical Machine Learning: Human Activity Recognition
+
+#The goal of this project is to predict the manner in which the participants did the exercise. This is the "classe" variable in the training set. The generated prediction model will then be used to predict the given 20 different test cases.
+
+#load needed libraries
+library(caret)
+library(randomForest)
+library(rpart)
+#1. Load Input Data
+
+#Set seed to reproduce the result
+set.seed(242423234)
+
+#Read pml training csv 
+pmlTrainingDF <- read.csv("/Users/VjMadz/Desktop/PML/pml-training.csv", na.strings = c("NA","#DIV/0!","")) 
+
+#Read pml testing csv 
+pmlTestingDF <- read.csv("/Users/VjMadz/Desktop/PML/pml-testing.csv", na.strings = c("NA","#DIV/0!",""))
+
+#2. Pre-processing
+
+ excluded columns with a lot of NA data (> than 80%) and those that have nearly zero variance. The timestamp fields were also removed as well as the X field which is just a running number. Training and Test data set are made identical.
+
+#Exclude columns with a lot of NAs (> 80%)
+aLotNACols<-which(colSums(is.na(pmlTrainingDF))> (nrow(pmlTrainingDF) * 0.8))
+pmlTrainingDF <- pmlTrainingDF[, -aLotNACols]
+pmlTestingDF <- pmlTestingDF[, -aLotNACols]
+
+# Remove NA data
+pmlTrainingDF <- pmlTrainingDF[, names(pmlTrainingDF)[sapply(pmlTrainingDF, function (x) ! (any(is.na(x) | x == "")))]]
+pmlTestingDF <- pmlTestingDF[, names(pmlTestingDF)[sapply(pmlTestingDF, function (x) ! (any(is.na(x) | x == "")))]]
+
+
+# preprocess to match the structure
+#Remove the problem_id field
+pmlTestingDF$problem_id <- NULL
+#Assign dummy class
+pmlTestingDF$classe <- c("A","B","C","D","E","A","B","C","D","E","A","B","C","D","E","A","B","C","D","E")
+
+#Get NZV fields and exclude them
+nzvList <- nearZeroVar(pmlTrainingDF)
+pmlTrainingDF <- pmlTrainingDF[, -nzvList]
+pmlTestingDF <- pmlTestingDF[, -nzvList]
+
+
+#Exclude timestamp fields, they are specific to the time when the accelerometer data was collected.
+#Although they may help to increase the accuracy of the classification against the training data ,model might overfit.
+
+pmlTrainingDF$raw_timestamp_part_1 <- NULL
+pmlTrainingDF$raw_timestamp_part_2 <- NULL
+pmlTrainingDF$cvtd_timestamp <- NULL
+
+pmlTestingDF$raw_timestamp_part_1 <- NULL
+pmlTestingDF$raw_timestamp_part_2 <- NULL
+pmlTestingDF$cvtd_timestamp <- NULL
+
+#Remove X field which is just a running sequence
+pmlTrainingDF$X <- NULL
+pmlTestingDF$X <- NULL
+
+dim(pmlTrainingDF)
+dim(pmlTestingDF)
+#2. Data Splitting
+
+#The given test data were splitted into a training (60%) and validation (40%).
+#The prediction model will be generated using the training set and then evaluated using the validation set.
+
+#Partition input data into training and validation
+inTrain <- createDataPartition(y=pmlTrainingDF$classe, p=0.6, list=FALSE)
+pmlTrain <- pmlTrainingDF[inTrain, ]
+pmlVal <- pmlTrainingDF[-inTrain, ]
+
+dim(pmlTrain)
+dim(pmlVal)
+#3. Model generation using Random Forest Algorithm
+
+# Generate prediction model
+modFitRP <- randomForest(classe ~. , data=pmlTrain)
+
+#4. Evaluate the generated model against the validation set using Cross-validation.
+
+#The generated prediction model was evaluated against the validation set and the accuracy and out-of sample error was measured.
+
+predictionsVal <- predict(modFitRP, pmlVal, type = "class")
+confusionMatrix(predictionsVal, pmlVal$classe)
+
+#4. Evaluate the generated model against the given test set
+
+The generated prediction model was evaluated against the given 20 test cases.
+
+predictionsTest <- predict(modFitRP, pmlTestingDF, type = "class")
+predictionsTest
+#4. Conclusion
+# Random forest algorithm is very good in classification problems and in our sample case it is able to generate a model with > 99% accuracy. 
+
